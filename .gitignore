@@ -1,0 +1,9 @@
+.DS_Store
+*.pyc
+*.swp
+*.swo
+*.class
+*.jar
+target/
+.classpath
+.project

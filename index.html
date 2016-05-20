@@ -1,0 +1,30 @@
+<html>
+<head>
+</head>
+<body>
+
+<script>
+/*
+ For testing, do:
+ /path/to/websockify> ./websockify.py 7890 localhost:7891
+ /path/to/openpixelcontrol> bin/gl_server -l layouts/mylayout.json -p 7891
+ */
+
+// Set true if using websockify, which expects a format slightly different
+// from the fcserver
+var WEBSOCKIFY = true;
+var ws = new WebSocket("ws://localhost:7890",
+                       WEBSOCKIFY ? ['binary', 'base64'] : '');
+ws.onopen = function () {
+  var packet = new Uint8Array([ 0,0,0,9, 255,0,0, 0,255,0, 0,0,255 ]);
+  ws.send(packet.buffer);
+  ws.send(packet.buffer);
+};
+
+ws.onerror = function (error) {
+    console.log('WebSocket Error ' + error);
+};
+
+</script>
+</body>
+</html>
