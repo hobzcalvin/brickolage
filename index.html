@@ -1,12 +1,22 @@
 <html>
 <head>
-<script src="p5.js"></script>
+  <script src="p5.js"></script>
+  <script src="opc.js"></script>
+
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <style type="text/css">
+    canvas {position: fixed; top: 0; left: 0; z-index: 1; }
+    #content {position: relative; z-index: 2; }
+  </style>
 </head>
-<body>
+<body bgcolor="black">
 
 <script>
 /*
  For testing, do:
+ /path/to/this-file> python -m SimpleHTTPServer 8000
  /path/to/websockify> ./websockify.py 7890 localhost:7891
  /path/to/openpixelcontrol> bin/gl_server -l layouts/mylayout.json -p 7891
  */
@@ -14,29 +24,23 @@
 // Set true if using websockify, which expects a format slightly different
 // from the fcserver
 var WEBSOCKIFY = true;
-var ws = new WebSocket("ws://localhost:7890",
-                       WEBSOCKIFY ? ['binary', 'base64'] : '');
-ws.onopen = function () {
-  var packet = new Uint8Array([ 0,0,0,9, 255,0,0, 0,255,0, 0,0,255 ]);
-  ws.send(packet.buffer);
-  ws.send(packet.buffer);
-};
-
-ws.onerror = function (error) {
-    console.log('WebSocket Error ' + error);
-};
+var OPC_HOST = window.location.hostname + ':7890';
 
 function setup() {
-  createCanvas(640, 480);
+  pixelDensity(1);
+  createCanvas(windowWidth, windowHeight);
+  opc = new p5.OPC(OPC_HOST, WEBSOCKIFY);
+}
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
 }
 
 function draw() {
-  if (mouseIsPressed) {
-    fill(0);
-  } else {
-    fill(255);
-  }
+  background(0);
+  fill(255);
   ellipse(mouseX, mouseY, 80, 80);
+
+  opc.handleDraw();
 }
 
 </script>
