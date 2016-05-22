@@ -28,6 +28,7 @@ var OPC_HOST = window.location.hostname + ':7890';
 var HEIGHT = 10;
 var WIDTH = 40;
 var DIAMETER = 30;
+var COLOR_SPEED = 5000;
 
 var lastFrame;
 
@@ -37,7 +38,7 @@ function setup() {
   opc = new p5.OPC(OPC_HOST, WEBSOCKIFY);
   setupGrid();
 
-  colorMode(HSB, 1);
+  colorMode(HSB, COLOR_SPEED, 1, 1);
   strokeWeight(DIAMETER);
   fill(0, 0, 1);
   tint(0, 0, 0.9);
@@ -63,7 +64,8 @@ function draw() {
   for (var i in touchHistory) {
     var touch = touchHistory[i];
     if (touch.length > 1) {
-      stroke(0, 0, 1);
+      // Color is stored in the last (earliest) history element.
+      stroke(touch[touch.length-1].color);
       for (var j = 0; j < touch.length-1; j++) {
         if (!touch[j].handled) {
           line(touch[j].x, touch[j].y, touch[j+1].x, touch[j+1].y);
@@ -72,6 +74,7 @@ function draw() {
       }
     } else {
       noStroke();
+      fill(touch[touch.length-1].color);
       ellipse(touch[0].x, touch[0].y, DIAMETER, DIAMETER);
     }
   } 
@@ -91,6 +94,7 @@ function handleTouches(ts) {
     if (touch.id in touchHistory) {
       newTH[touch.id] = [record].concat(touchHistory[touch.id]);
     } else {
+      record.color = color(record.t % COLOR_SPEED, 1, 1);
       newTH[touch.id] = [record]
     }
   }
