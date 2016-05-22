@@ -26,13 +26,23 @@
 var WEBSOCKIFY = true;
 var OPC_HOST = window.location.hostname + ':7890';
 
+var HEIGHT = 10;
+var WIDTH = 40;
+
 function setup() {
   pixelDensity(1);
   createCanvas(windowWidth, windowHeight);
   opc = new p5.OPC(OPC_HOST, WEBSOCKIFY);
+  setupGrid();
 }
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
+  setupGrid();
+}
+function setupGrid() {
+  for (var i = 0; i < 8; i++) {
+    opc.ledGrid(i*50, HEIGHT, 5, width * (0.5 + i) / 8, height/2, width/WIDTH, width/WIDTH, 3*Math.PI/2, true, true);
+  }
 }
 
 function draw() {
