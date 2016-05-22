@@ -28,11 +28,14 @@ var OPC_HOST = window.location.hostname + ':7890';
 var HEIGHT = 10;
 var WIDTH = 40;
 
+var lastFrame;
+
 function setup() {
   pixelDensity(1);
   createCanvas(windowWidth, windowHeight);
   opc = new p5.OPC(OPC_HOST, WEBSOCKIFY);
   setupGrid();
+  colorMode(HSB, 1);
 }
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
@@ -42,17 +45,48 @@ function setupGrid() {
   for (var i = 0; i < 8; i++) {
     opc.ledGrid(i*50, HEIGHT, 5, width * (0.5 + i) / 8, height/2, width/WIDTH, width/WIDTH, 3*Math.PI/2, true, true);
   }
+  background(0);
+  lastFrame = get();
 }
 
-function draw() {
-  background(0);
-  fill(255);
-  ellipse(mouseX, mouseY, 80, 80);
+var overdueTouches = [];
 
+function draw() {
+  tint(0, 0, 0.9);
+  image(lastFrame);
+  noTint();
+  
+  noStroke();
+  fill(255);
+  for (var i in overdueTouches) {
+    ellipse(overdueTouches[i].x, overdueTouches[i].y, 80, 80);
+  }
+  overdueTouches = [];
+
+  lastFrame = get();
   opc.handleDraw();
 }
 
+// One-stop function to handle the current state of touches, which if this is
+// called, probably changed in some way.
+function handleTouches(ts) {
+  overdueTouches = overdueTouches.concat(ts);
+}
+// Pressed and tragged are the same thing: update with a faked touches object
+mousePressed = mouseDragged = function() {
+  handleTouches([{x: mouseX, y: mouseY, id:0}]);
+}
+// Mouse released means no more (faked) touches
+mouseReleased = function() {
+  handleTouches([]);
+}
+// Real touch events can just pass along the touches array
+touchStarted = touchMoved = touchEnded = function() {
+  handleTouches(touches);
+}
 
+
+// Prevent overscrolling on iOS etc.
 document.body.addEventListener('touchmove', function(event) {
   event.preventDefault();
 }, false); 
