@@ -2,21 +2,22 @@
 p5.OPC = function (host, using_websockify) {
   var ws = new WebSocket("ws://" + (host || "localhost:7890"),
                          using_websockify ? ['binary', 'base64'] : '');
-  var connected = false;
+  var self = this;
+  this.connected = false;
   this.pixelLocations = [];
 
   ws.onopen = function () {
-    connected = true;
+    self.connected = true;
   };
   ws.onclose = function () {
-    connected = false;
+    self.connected = false;
   };
   ws.onerror = function (error) {
     console.log('WebSocket Error ' + error);
   };
 
   this._sendPacket = function(pkt) {
-    if (connected) {
+    if (self.connected) {
       var packet = new Uint8Array(pkt);
       ws.send(packet.buffer);
     }
@@ -92,5 +93,8 @@ p5.OPC.prototype.handleDraw = function() {
   fill(255);
   stroke(0);
   text('fps:'+Math.round(frameRate()), 0, 14);
+  if (!this.connected) {
+    text("NOT CONNECTED", 50, 14);
+  }
 }
 

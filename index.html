@@ -1,14 +1,13 @@
 <html>
 <head>
-  <script src="p5.js"></script>
-  <script src="opc.js"></script>
+  <script src="js/p5.js"></script>
+  <script src="js/opc.js"></script>
 
   <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-touch-fullscreen" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <style type="text/css">
-    canvas {position: fixed; top: 0; left: 0; z-index: 1; }
-    #content {position: relative; z-index: 2; }
   </style>
 </head>
 <body bgcolor="black">
@@ -52,6 +51,11 @@ function draw() {
 
   opc.handleDraw();
 }
+
+
+document.body.addEventListener('touchmove', function(event) {
+  event.preventDefault();
+}, false); 
 
 </script>
 </body>
