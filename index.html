@@ -27,6 +27,7 @@ var OPC_HOST = window.location.hostname + ':7890';
 
 var HEIGHT = 10;
 var WIDTH = 40;
+var DIAMETER = 30;
 
 var lastFrame;
 
@@ -35,7 +36,11 @@ function setup() {
   createCanvas(windowWidth, windowHeight);
   opc = new p5.OPC(OPC_HOST, WEBSOCKIFY);
   setupGrid();
+
   colorMode(HSB, 1);
+  strokeWeight(DIAMETER);
+  fill(0, 0, 1);
+  tint(0, 0, 0.9);
 }
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
@@ -49,20 +54,29 @@ function setupGrid() {
   lastFrame = get();
 }
 
-var overdueTouches = [];
+var touchHistory = {};
 
 function draw() {
-  tint(0, 0, 0.9);
+  // Tint is applied so this will fade the image slowly
   image(lastFrame);
-  noTint();
-  
-  noStroke();
-  fill(255);
-  for (var i in overdueTouches) {
-    ellipse(overdueTouches[i].x, overdueTouches[i].y, 80, 80);
-  }
-  overdueTouches = [];
+ 
+  for (var i in touchHistory) {
+    var touch = touchHistory[i];
+    if (touch.length > 1) {
+      stroke(0, 0, 1);
+      for (var j = 0; j < touch.length-1; j++) {
+        if (!touch[j].handled) {
+          line(touch[j].x, touch[j].y, touch[j+1].x, touch[j+1].y);
+          touch[j].handled = true;
+        }
+      }
+    } else {
+      noStroke();
+      ellipse(touch[0].x, touch[0].y, DIAMETER, DIAMETER);
+    }
+  } 
 
+  // Save the canvas before OPC does crap to it
   lastFrame = get();
   opc.handleDraw();
 }
@@ -70,7 +84,17 @@ function draw() {
 // One-stop function to handle the current state of touches, which if this is
 // called, probably changed in some way.
 function handleTouches(ts) {
-  overdueTouches = overdueTouches.concat(ts);
+  newTH = {};
+  for (var i in ts) {
+    var touch = ts[i];
+    var record = { t: millis(), x: touch.x, y: touch.y };
+    if (touch.id in touchHistory) {
+      newTH[touch.id] = [record].concat(touchHistory[touch.id]);
+    } else {
+      newTH[touch.id] = [record]
+    }
+  }
+  touchHistory = newTH;
 }
 // Pressed and tragged are the same thing: update with a faked touches object
 mousePressed = mouseDragged = function() {
