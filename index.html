@@ -1,6 +1,7 @@
 <html>
 <head>
   <script src="js/p5.js"></script>
+  <script src="js/p5.dom.js"></script>
   <script src="js/opc.js"></script>
 
   <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no">
@@ -27,10 +28,13 @@ var OPC_HOST = window.location.hostname + ':7890';
 
 var HEIGHT = 10;
 var WIDTH = 40;
-var DIAMETER = 30;
 var COLOR_SPEED = 5000;
 
 var lastFrame;
+
+var decaySlider;
+var diameterSlider;
+
 
 function setup() {
   pixelDensity(1);
@@ -39,9 +43,12 @@ function setup() {
   setupGrid();
 
   colorMode(HSB, COLOR_SPEED, 1, 1);
-  strokeWeight(DIAMETER);
   fill(0, 0, 1);
-  tint(0, 0, 0.9);
+
+  decaySlider = createSlider(0, 1000, 800);
+  decaySlider.position(0, 30);
+  diameterSlider = createSlider(10, 200, 30);
+  diameterSlider.position(150, 30);
 }
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
@@ -66,6 +73,9 @@ function deviceShaken() {
 var touchHistory = {};
 
 function draw() {
+  var dia = diameterSlider.value();
+  strokeWeight(dia);
+  tint(0, 0, Math.pow(decaySlider.value() / 1000.0, 1/8));
   // Tint is applied so this will fade the image slowly
   image(lastFrame);
  
@@ -83,7 +93,7 @@ function draw() {
     } else {
       noStroke();
       fill(touch[touch.length-1].color);
-      ellipse(touch[0].x, touch[0].y, DIAMETER, DIAMETER);
+      ellipse(touch[0].x, touch[0].y, dia, dia);
     }
   } 
 
