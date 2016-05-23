@@ -54,6 +54,14 @@ function setupGrid() {
   background(0);
   lastFrame = get();
 }
+function keyPressed() {
+  if (keyCode === ESCAPE) {
+    opc.toggleConnection();
+  }
+}
+function deviceShaken() {
+  opc.toggleConnection();
+}
 
 var touchHistory = {};
 

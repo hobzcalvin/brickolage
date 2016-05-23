@@ -1,25 +1,26 @@
 
+var WEBSOCKET_STATES = {
+  0: 'connecting',
+  1: 'open',
+  2: 'closing',
+  3: 'closed'
+}
+
 p5.OPC = function (host, using_websockify) {
-  var ws = new WebSocket("ws://" + (host || "localhost:7890"),
-                         using_websockify ? ['binary', 'base64'] : '');
   var self = this;
-  this.connected = false;
+  this.host = host;
+  this.using_websockify = using_websockify;
+  this.connect();
   this.pixelLocations = [];
 
-  ws.onopen = function () {
-    self.connected = true;
-  };
-  ws.onclose = function () {
-    self.connected = false;
-  };
-  ws.onerror = function (error) {
+  this.ws.onerror = function (error) {
     console.log('WebSocket Error ' + error);
   };
 
   this._sendPacket = function(pkt) {
-    if (self.connected) {
+    if (self.ws.readyState == 1) {
       var packet = new Uint8Array(pkt);
-      ws.send(packet.buffer);
+      self.ws.send(packet.buffer);
     }
   }
 
@@ -28,6 +29,21 @@ p5.OPC = function (host, using_websockify) {
     websocket.onclose = function () {}; // disable onclose handler first
     websocket.close()
   };
+}
+
+p5.OPC.prototype.connect = function() {
+  this.ws = new WebSocket("ws://" + (this.host || "localhost:7890"),
+                          this.using_websockify ? ['binary', 'base64'] : '');
+}
+p5.OPC.prototype.close = function() {
+  this.ws.close();
+}
+p5.OPC.prototype.toggleConnection = function() {
+  if (this.ws.readyState == 1) {
+    this.close();
+  } else {
+    this.connect();
+  }
 }
 
 // Set the location of a single LED
@@ -92,9 +108,6 @@ p5.OPC.prototype.handleDraw = function() {
   textSize(12);
   fill(255);
   stroke(0);
-  text('fps:'+Math.round(frameRate()), 0, 14);
-  if (!this.connected) {
-    text("NOT CONNECTED", 50, 14);
-  }
+  text(WEBSOCKET_STATES[this.ws.readyState] + ' | fps:'+Math.round(frameRate()), 0, 14);
 }
 
