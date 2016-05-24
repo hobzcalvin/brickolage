@@ -13,10 +13,6 @@ p5.OPC = function (host, using_websockify) {
   this.connect();
   this.pixelLocations = [];
 
-  this.ws.onerror = function (error) {
-    console.log('WebSocket Error ' + error);
-  };
-
   this._sendPacket = function(pkt) {
     if (self.ws.readyState == 1) {
       var packet = new Uint8Array(pkt);
@@ -83,6 +79,9 @@ p5.OPC.prototype.ledGrid = function(index, stripLength, numStrips, x, y,
   }
 }
 
+p5.OPC.prototype.getState = function() {
+  return WEBSOCKET_STATES[this.ws.readyState];
+}
 
 p5.OPC.prototype.handleDraw = function() {
   loadPixels();
@@ -104,10 +103,5 @@ p5.OPC.prototype.handleDraw = function() {
   this._sendPacket(packet);
 
   updatePixels();
-
-  textSize(12);
-  fill(255);
-  stroke(0);
-  text(WEBSOCKET_STATES[this.ws.readyState] + ' | fps:'+Math.round(frameRate()), 0, 14);
 }
 

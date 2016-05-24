@@ -9,9 +9,20 @@
   <meta name="apple-touch-fullscreen" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <style type="text/css">
+    body {
+      background-color: black;
+      color: white;
+    }
   </style>
 </head>
-<body bgcolor="black">
+<body>
+
+<div id="uiDiv">
+  <span id="statusSpan"></span>
+  <input type="range" id="decaySlider" min="0" max="1000" value="800"/>
+  <input type="range" id="diameterSlider" min="10" max="200" value="30"/>
+</div>
+<div id="canvasDiv"></div>
 
 <script>
 /*
@@ -34,24 +45,30 @@ var lastFrame;
 
 var decaySlider;
 var diameterSlider;
+var statusSpan;
 
 
 function setup() {
-  pixelDensity(1);
-  createCanvas(windowWidth, windowHeight);
   opc = new p5.OPC(OPC_HOST, WEBSOCKIFY);
-  setupGrid();
+  pixelDensity(1);
+  var canvas = createCanvas(windowWidth, windowHeight);
+  canvas.parent('#canvasDiv');
+  // Do this now so we have it for draw() which is called by resizeCanvas()
+  lastFrame = get();
 
   colorMode(HSB, COLOR_SPEED, 1, 1);
   fill(0, 0, 1);
 
-  decaySlider = createSlider(0, 1000, 800);
-  decaySlider.position(0, 30);
-  diameterSlider = createSlider(10, 200, 30);
-  diameterSlider.position(150, 30);
+  decaySlider = select('#decaySlider');
+  diameterSlider = select('#diameterSlider');
+  statusSpan = select('#statusSpan');
+
+  // This encompasses all post-resize setup logic, so always call it to start
+  windowResized();
 }
 function windowResized() {
-  resizeCanvas(windowWidth, windowHeight);
+  var thediv = select('#uiDiv');
+  resizeCanvas(windowWidth, windowHeight - thediv.size().height);
   setupGrid();
 }
 function setupGrid() {
@@ -100,6 +117,7 @@ function draw() {
   // Save the canvas before OPC does crap to it
   lastFrame = get();
   opc.handleDraw();
+  statusSpan.html(opc.getState() + ' | fps:' + Math.round(frameRate()));
 }
 
 // One-stop function to handle the current state of touches, which if this is
@@ -108,6 +126,10 @@ function handleTouches(ts) {
   newTH = {};
   for (var i in ts) {
     var touch = ts[i];
+    if (touch.x < 0 || touch.x > width || touch.y < 0 || touch.y > height) {
+      // Ignore this touch; it's outside the canvas bounds
+      continue;
+    }
     var record = { t: millis(), x: touch.x, y: touch.y };
     if (touch.id in touchHistory) {
       newTH[touch.id] = [record].concat(touchHistory[touch.id]);
