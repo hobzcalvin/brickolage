@@ -13,14 +13,60 @@
       background-color: black;
       color: white;
     }
+    table {
+      text-align: center;
+    }
   </style>
 </head>
 <body>
 
 <div id="uiDiv">
+  <table>
+    <tr>
+      <td>
+        Decay<br/>
+        <input type="range" id="decaySlider" min="0" max="1000" value="800"/>
+      </td>
+      <!--
+      <td>
+        Base Hue<br/>
+        <input type="range" id="diameterSlider" min="10" max="200" value="30"/>
+      </td>
+      <td>
+        Base Saturation<br/>
+        <input type="range" id="diameterSlider" min="10" max="200" value="30"/>
+      </td>
+      <td>
+        Base Brightness<br/>
+        <input type="range" id="diameterSlider" min="10" max="200" value="30"/>
+      </td>
+      <td>
+        Palette:<br/>
+      </td>
+    </tr>
+    <tr>
+    -->
+      <td>
+        Width<br/>
+        <input type="range" id="diameterSlider" min="10" max="200" value="30"/>
+      </td>
+      <!--
+      <td>
+        Hue Range<br/>
+        <input type="range" id="diameterSlider" min="10" max="200" value="30"/>
+      </td>
+      <td>
+        Saturation Range<br/>
+        <input type="range" id="diameterSlider" min="10" max="200" value="30"/>
+      </td>
+      <td>
+        Brightness Range<br/>
+        <input type="range" id="diameterSlider" min="10" max="200" value="30"/>
+      </td>
+      -->
+    </tr>
+  </table>
   <span id="statusSpan"></span>
-  <input type="range" id="decaySlider" min="0" max="1000" value="800"/>
-  <input type="range" id="diameterSlider" min="10" max="200" value="30"/>
 </div>
 <div id="canvasDiv"></div>
 
@@ -39,9 +85,12 @@ var OPC_HOST = window.location.hostname + ':7890';
 
 var HEIGHT = 10;
 var WIDTH = 40;
+// Milliseconds of inactivity before simulating activity
+var INACTIVITY_TIMEOUT = 5000;
 var COLOR_SPEED = 5000;
 
 var lastFrame;
+var lastTouch;
 
 var decaySlider;
 var diameterSlider;
@@ -65,6 +114,7 @@ function setup() {
 
   // This encompasses all post-resize setup logic, so always call it to start
   windowResized();
+  lastTouch = millis();
 }
 function windowResized() {
   var thediv = select('#uiDiv');
@@ -88,29 +138,51 @@ function deviceShaken() {
 }
 
 var touchHistory = {};
+var touchArchive = [];
 
 function draw() {
+  if (lastTouch < millis() - INACTIVITY_TIMEOUT) {
+    // TODO START HERE with touchArchive. How??
+  }
   var dia = diameterSlider.value();
   strokeWeight(dia);
   tint(0, 0, Math.pow(decaySlider.value() / 1000.0, 1/8));
   // Tint is applied so this will fade the image slowly
   image(lastFrame);
- 
+
+  // Loop through all still-going touches 
   for (var i in touchHistory) {
     var touch = touchHistory[i];
-    if (touch.length > 1) {
-      // Color is stored in the last (earliest) history element.
+    // If this touch has multiple points in its path,
+    if (touch.length > 1 &&
+        // and the latest point has never been drawn,
+        !touch[0].drawn) {
+      // then draw a line from the latest point to the one before.
+      // Color is stored in the earliest history element.
       stroke(touch[touch.length-1].color);
       for (var j = 0; j < touch.length-1; j++) {
-        if (!touch[j].handled) {
+        if (!touch[j].drawn) {
           line(touch[j].x, touch[j].y, touch[j+1].x, touch[j+1].y);
-          touch[j].handled = true;
+          touch[j].drawn = true;
+        } else {
+          // If this point has been drawn, all previous ones must have been too
+          break;
         }
       }
+    // Otherwise (only one point, or the last point has been drawn),
+    // just draw the latest point as a circle. This means continued
+    // touching means continued drawing of the circle.
     } else {
       noStroke();
+      // Color is stored in the earliest history element.
       fill(touch[touch.length-1].color);
       ellipse(touch[0].x, touch[0].y, dia, dia);
+      touch[0].drawn = true;
+    }
+    if (touch[0].pendingDelete) {
+      // This touch has already ended, but it was kept in touchHistory so we
+      // could draw it. Now we should delete it.
+      delete touchHistory[i];
     }
   } 
 
@@ -123,6 +195,8 @@ function draw() {
 // One-stop function to handle the current state of touches, which if this is
 // called, probably changed in some way.
 function handleTouches(ts) {
+  lastTouch = millis();
+  // Build a new touchHistory array while we delete entries from the old one
   newTH = {};
   for (var i in ts) {
     var touch = ts[i];
@@ -130,13 +204,30 @@ function handleTouches(ts) {
       // Ignore this touch; it's outside the canvas bounds
       continue;
     }
-    var record = { t: millis(), x: touch.x, y: touch.y };
+    var record = { t: lastTouch, x: touch.x, y: touch.y };
     if (touch.id in touchHistory) {
       newTH[touch.id] = [record].concat(touchHistory[touch.id]);
+      // Remove this touch from old touchHistory; we've seen it.
+      delete touchHistory[touch.id];
     } else {
       record.color = color(record.t % COLOR_SPEED, 1, 1);
       newTH[touch.id] = [record]
     }
+  }
+  // Any remaining touches in touchHistory are now over.
+  // However, they may not all have been drawn, meaning they haven't
+  // been drawn to the canvas.
+  for (var i in touchHistory) {
+    if (!touchHistory[i][0].drawn) {
+      // Touch still has some drawing left, so keep it in touchHistory but
+      // with a flag so draw() knows it can delete it when drawn.
+      touchHistory[i][0].pendingDelete = true;
+      // Now that this touch is over, its id may be reused (probably only
+      // happens for mouse events). So give it a hacky new id.
+      newTH[i+'pending'] = touchHistory[i];
+    }
+    // This touch is technically over, so move it to the history for replay
+    touchArchive.push(touchHistory[i]);
   }
   touchHistory = newTH;
 }
@@ -156,7 +247,10 @@ touchStarted = touchMoved = touchEnded = function() {
 
 // Prevent overscrolling on iOS etc.
 document.body.addEventListener('touchmove', function(event) {
-  event.preventDefault();
+  // We need the touchmove event for sliders to work properly
+  if (event.target.nodeName != "INPUT") {
+    event.preventDefault();
+  }
 }, false); 
 
 </script>
