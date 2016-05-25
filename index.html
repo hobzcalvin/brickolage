@@ -137,13 +137,90 @@ function deviceShaken() {
   opc.toggleConnection();
 }
 
+// Object holding new touches that need to be drawn
 var touchHistory = {};
+// Store of old touches that we'll use if there's inactivity
 var touchArchive = [];
+// Which index in touchArchive is next
+var replayCursor = 0;
+// Current touch in touchArchive that we're currently replaying
+var currentReplay = null;
+// Another boolean to track if we're entering replay right now
+var inReplay = false;
+
+function newColor() {
+  return color(millis() % COLOR_SPEED, 1, 1);
+}
+function randomizeSlider(s) {
+  var min = s.attribute('min');
+  s.value(Math.random() * (s.attribute('max')-min) + min);
+}
 
 function draw() {
+  // This points to touchHistory when there's active use; otherwise it holds
+  // simulated touches from the touchArchive.
+  var touchStore = {};
   if (lastTouch < millis() - INACTIVITY_TIMEOUT) {
-    // TODO START HERE with touchArchive. How??
+    if (!inReplay) {
+      inReplay = true;
+      // This is a new replay sequence. Randomize decay.
+      randomizeSlider(decaySlider);
+    }
+    // We're inactive. If there's no touch currently being replayed and
+    // the touchArchive has touches to replay, pick the next one.
+    if (!currentReplay && touchArchive.length > 0) {
+      // Make sure we pick a reasonable index.
+      replayCursor %= touchArchive.length;
+      // We'll pick the next index next time.
+      currentReplay = touchArchive[replayCursor++];
+
+      // Pick a random size for this touch in replay
+      randomizeSlider(diameterSlider);
+
+      // Earliest point in the touch has color data, etc.
+      var earliest = currentReplay[currentReplay.length-1];
+      // Count replays starting from 0
+      earliest.replayCount = earliest.replayCount + 1 || 0;
+      // Give it a new random color
+      earliest.color = newColor();
+      // All timestamps will be subtracted by this for proper replay timing
+      var t_offset = earliest.t - millis();
+      for (var i in currentReplay) {
+        var point = currentReplay[i];
+        point.t -= t_offset;
+        // Forget these, if any
+        delete point.drawn;
+        delete point.pendingDelete;
+        // Alternate mirroring vertical and horizontal. Gets all 4 reflections.
+        if (earliest.replayCount % 2) {
+          point.x = width - point.x;
+        } else {
+          point.y = height - point.y;
+        }
+      }
+    }
+    if (currentReplay) {
+      // We're in the middle of a replay. Has the last point been drawn?
+      if (currentReplay[0].drawn) {
+        // Yes; the replay of this touch is over. Pick a new one next time.
+        currentReplay = null;
+      } else {
+        // Still more points in the current replayed touch. Transform this
+        // into the faked touchStore (acts like touchHistory) by filtering out
+        // all points in the "future" (now that we've offset the timestamps)
+        touchStore = {
+          0: currentReplay.filter(function(pt) { return pt.t <= millis() })
+        };
+      }
+    }
+  } else {
+    // Someone's playing! So use the real touchHistory, and forget about
+    // whatever we were replaying.
+    touchStore = touchHistory;
+    currentReplay = null;
+    inReplay = false;
   }
+
   var dia = diameterSlider.value();
   strokeWeight(dia);
   tint(0, 0, Math.pow(decaySlider.value() / 1000.0, 1/8));
@@ -151,8 +228,8 @@ function draw() {
   image(lastFrame);
 
   // Loop through all still-going touches 
-  for (var i in touchHistory) {
-    var touch = touchHistory[i];
+  for (var i in touchStore) {
+    var touch = touchStore[i];
     // If this touch has multiple points in its path,
     if (touch.length > 1 &&
         // and the latest point has never been drawn,
@@ -180,9 +257,10 @@ function draw() {
       touch[0].drawn = true;
     }
     if (touch[0].pendingDelete) {
-      // This touch has already ended, but it was kept in touchHistory so we
+      // This touch has already ended, but it was kept in touchStore (actually,
+      // this must be touchHistory in practice) so we
       // could draw it. Now we should delete it.
-      delete touchHistory[i];
+      delete touchStore[i];
     }
   } 
 
@@ -210,7 +288,7 @@ function handleTouches(ts) {
       // Remove this touch from old touchHistory; we've seen it.
       delete touchHistory[touch.id];
     } else {
-      record.color = color(record.t % COLOR_SPEED, 1, 1);
+      record.color = newColor();
       newTH[touch.id] = [record]
     }
   }
