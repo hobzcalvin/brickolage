@@ -15,6 +15,14 @@
     }
     table {
       text-align: center;
+      width: 100%;
+    }
+    td {
+      padding: 10px;
+    }
+    input[type="range"] {
+      display: table-cell;
+      width: 100%;
     }
   </style>
 </head>
@@ -25,45 +33,38 @@
     <tr>
       <td>
         Decay<br/>
-        <input type="range" id="decaySlider" min="0" max="1000" value="800"/>
+        <input type="range" id="decaySlider" min="0" max="999" value="800"/>
       </td>
-      <!--
       <td>
         Base Hue<br/>
-        <input type="range" id="diameterSlider" min="10" max="200" value="30"/>
+        <input type="range" id="hueSlider" min="0" max="999" value="500"/>
       </td>
       <td>
         Base Saturation<br/>
-        <input type="range" id="diameterSlider" min="10" max="200" value="30"/>
+        <input type="range" id="satSlider" min="0" max="999" value="500"/>
       </td>
       <td>
         Base Brightness<br/>
-        <input type="range" id="diameterSlider" min="10" max="200" value="30"/>
-      </td>
-      <td>
-        Palette:<br/>
+        <input type="range" id="brightSlider" min="0" max="999" value="1000"/>
       </td>
     </tr>
     <tr>
-    -->
       <td>
         Width<br/>
         <input type="range" id="diameterSlider" min="10" max="200" value="30"/>
       </td>
-      <!--
       <td>
         Hue Range<br/>
-        <input type="range" id="diameterSlider" min="10" max="200" value="30"/>
+        <input type="range" id="hueRangeSlider" min="0" max="999" value="100"/>
       </td>
       <td>
         Saturation Range<br/>
-        <input type="range" id="diameterSlider" min="10" max="200" value="30"/>
+        <input type="range" id="satRangeSlider" min="0" max="999" value="100"/>
       </td>
       <td>
         Brightness Range<br/>
-        <input type="range" id="diameterSlider" min="10" max="200" value="30"/>
+        <input type="range" id="brightRangeSlider" min="0" max="999" value="100"/>
       </td>
-      -->
     </tr>
   </table>
   <span id="statusSpan"></span>
@@ -86,8 +87,8 @@ var OPC_HOST = window.location.hostname + ':7890';
 var HEIGHT = 10;
 var WIDTH = 40;
 // Milliseconds of inactivity before simulating activity
-var INACTIVITY_TIMEOUT = 5000;
-var COLOR_SPEED = 5000;
+var INACTIVITY_TIMEOUT = 10000;
+var INACTIVITY_CHANGE_FRAMES = 600;
 
 var lastFrame;
 var lastTouch;
@@ -105,10 +106,15 @@ function setup() {
   // Do this now so we have it for draw() which is called by resizeCanvas()
   lastFrame = get();
 
-  colorMode(HSB, COLOR_SPEED, 1, 1);
-  fill(0, 0, 1);
+  colorMode(HSB, 1000, 1000, 1000);
 
   decaySlider = select('#decaySlider');
+  hueSlider = select('#hueSlider');
+  satSlider = select('#satSlider');
+  brightSlider = select('#brightSlider');
+  hueRangeSlider = select('#hueRangeSlider');
+  satRangeSlider = select('#satRangeSlider');
+  brightRangeSlider = select('#brightRangeSlider');
   diameterSlider = select('#diameterSlider');
   statusSpan = select('#statusSpan');
 
@@ -148,8 +154,34 @@ var currentReplay = null;
 // Another boolean to track if we're entering replay right now
 var inReplay = false;
 
+function randomRange(baseSlider, rangeSlider, wrap) {
+  if (wrap) {
+    // For hue, wrapping/"overflowing" around the min/max is ok.
+    return (
+      // Base value plus/minus up to half the range value.
+      (baseSlider.value() + (Math.random() - 0.5) * rangeSlider.value())
+       // This makes sure value returned is positive and less than 1000.
+       + 1000) % 1000
+  } else {
+    // For sat/bright, the spread of values is affected by how close the base
+    // value is to the bounds. Always allow the width of the range to happen,
+    // getting as close to "center" on the base as possible.
+    var base = baseSlider.value();
+    var range = rangeSlider.value();
+    if (base - range/2 < 0) {
+      base = range/2;
+    } else if (base + range/2 > 999) {
+      base = 999 - range/2;
+    }
+    return (Math.random() - 0.5) * range + base;
+  }
+}
 function newColor() {
-  return color(millis() % COLOR_SPEED, 1, 1);
+  return color(
+    randomRange(hueSlider, hueRangeSlider, true),
+    randomRange(satSlider, satRangeSlider, false),
+    randomRange(brightSlider, brightRangeSlider, false)
+  );
 }
 function randomizeSlider(s) {
   var min = s.attribute('min');
@@ -161,10 +193,18 @@ function draw() {
   // simulated touches from the touchArchive.
   var touchStore = {};
   if (lastTouch < millis() - INACTIVITY_TIMEOUT) {
-    if (!inReplay) {
+    // Is replay starting now, or have we been replaying for a while?
+    if (!inReplay || !(frameCount % INACTIVITY_CHANGE_FRAMES)) {
       inReplay = true;
-      // This is a new replay sequence. Randomize decay.
+      // Randomize various settings.
       randomizeSlider(decaySlider);
+      randomizeSlider(diameterSlider);
+      randomizeSlider(hueSlider);
+      randomizeSlider(satSlider);
+      randomizeSlider(brightSlider);
+      randomizeSlider(hueRangeSlider);
+      randomizeSlider(satRangeSlider);
+      randomizeSlider(brightRangeSlider);
     }
     // We're inactive. If there's no touch currently being replayed and
     // the touchArchive has touches to replay, pick the next one.
@@ -173,16 +213,12 @@ function draw() {
       replayCursor %= touchArchive.length;
       // We'll pick the next index next time.
       currentReplay = touchArchive[replayCursor++];
-
-      // Pick a random size for this touch in replay
-      randomizeSlider(diameterSlider);
-
       // Earliest point in the touch has color data, etc.
       var earliest = currentReplay[currentReplay.length-1];
-      // Count replays starting from 0
-      earliest.replayCount = earliest.replayCount + 1 || 0;
       // Give it a new random color
       earliest.color = newColor();
+      // Give this replay of the touch a random reflection
+      earliest.reflect = Math.floor(Math.random() * 4);
       // All timestamps will be subtracted by this for proper replay timing
       var t_offset = earliest.t - millis();
       for (var i in currentReplay) {
@@ -191,10 +227,11 @@ function draw() {
         // Forget these, if any
         delete point.drawn;
         delete point.pendingDelete;
-        // Alternate mirroring vertical and horizontal. Gets all 4 reflections.
-        if (earliest.replayCount % 2) {
+        // Reflect vertical/horizontal
+        if (earliest.reflect % 2) {
           point.x = width - point.x;
-        } else {
+        }
+        if (earliest.reflect < 2) {
           point.y = height - point.y;
         }
       }
@@ -223,7 +260,7 @@ function draw() {
 
   var dia = diameterSlider.value();
   strokeWeight(dia);
-  tint(0, 0, Math.pow(decaySlider.value() / 1000.0, 1/8));
+  tint(0, 0, 1000.0 * Math.pow(decaySlider.value() / 1000.0, 1/8));
   // Tint is applied so this will fade the image slowly
   image(lastFrame);
 
