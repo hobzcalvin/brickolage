@@ -29,7 +29,7 @@ p5.OPC = function (host, using_websockify) {
 
 p5.OPC.prototype.connect = function() {
   this.ws = new WebSocket("ws://" + (this.host || "localhost:7890"),
-                          this.using_websockify ? ['binary', 'base64'] : '');
+                          this.using_websockify ? ['binary', 'base64'] : ['fcserver']);
 }
 p5.OPC.prototype.close = function() {
   this.ws.close();
@@ -99,7 +99,13 @@ p5.OPC.prototype.handleDraw = function() {
       pixels[idx+2] ^= 0xFF;
     }
   }
-  packet.unshift(0, 0, (packet.length >> 8) & 0xFF, packet.length & 0xFF);
+  if (this.using_websockify) {
+    // gl_server expects the packet length, as is the OPC standard
+    packet.unshift(0, 0, (packet.length >> 8) & 0xFF, packet.length & 0xFF);
+  } else {
+    // fcserver expects 0s because the TCP packet already defines length
+    packet.unshift(0, 0, 0, 0);
+  }
   this._sendPacket(packet);
 
   updatePixels();
