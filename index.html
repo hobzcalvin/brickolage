@@ -103,7 +103,8 @@ var statusSpan;
 function setup() {
   opc = new p5.OPC(OPC_HOST, WEBSOCKIFY);
   pixelDensity(1);
-  var canvas = createCanvas(windowWidth, windowHeight);
+  // Bogus values until we call windowResized()
+  var canvas = createCanvas(10, 10);
   canvas.parent('#canvasDiv');
   // Do this now so we have it for draw() which is called by resizeCanvas()
   lastFrame = get();
@@ -126,18 +127,24 @@ function setup() {
   windowResized();
   lastTouch = millis();
 }
+
 function windowResized() {
   var thediv = select('#uiDiv');
-  resizeCanvas(windowWidth, windowHeight - thediv.size().height);
-  setupGrid();
-}
-function setupGrid() {
+  // Take up full width (since our display is wide).
+  // Height of canvas should be twice what it needs to be to fit all the
+  // virtual pixels (so users can draw outside the pixels a bit without
+  // losing their touch/color/etc.) OR whatever's left in the window after
+  // #uiDiv's height--whichever is less. This saves unnecessary pixels when
+  // the window is very tall.
+  resizeCanvas(windowWidth, Math.min(windowWidth / WIDTH * HEIGHT * 2,
+                                     windowHeight - thediv.size().height));
   for (var i = 0; i < 8; i++) {
     opc.ledGrid((8-i-1)*50, HEIGHT, 5, width * (0.5 + i) / 8, height/2, width/WIDTH, width/WIDTH, Math.PI/2, true, true);
   }
   background(0);
   lastFrame = get();
 }
+
 function keyPressed() {
   if (keyCode === ESCAPE) {
     opc.toggleConnection();
