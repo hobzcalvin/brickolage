@@ -108,7 +108,9 @@ function setup() {
   // Do this now so we have it for draw() which is called by resizeCanvas()
   lastFrame = get();
 
-  colorMode(HSB, 1000, 1000, 1000);
+  colorMode(HSB, 1000, 1000, 1000, 1000);
+  // Tint makes everything slow!!!
+  noTint();
 
   decaySlider = select('#decaySlider');
   hueSlider = select('#hueSlider');
@@ -262,9 +264,9 @@ function draw() {
 
   var dia = diameterSlider.value();
   strokeWeight(dia);
-  tint(0, 0, 1000.0 * Math.pow(decaySlider.value() / 1000.0, 1/8));
-  // Tint is applied so this will fade the image slowly
   image(lastFrame);
+  // Fill background with black at given alpha value to fade the image
+  background(0, 1000 - 1000 * Math.pow(decaySlider.value() / 1000, 1/8));
 
   // Loop through all still-going touches 
   for (var i in touchStore) {
