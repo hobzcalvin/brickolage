@@ -6,6 +6,8 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
     <link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
+    <link rel="stylesheet" type="text/css" href="css/nouislider.css">
+    <link rel="stylesheet" type="text/css" href="css/nouislider.pips.css">
     <link rel="stylesheet" type="text/css" href="css/fadeclient.css">
   </head>
   <body>
@@ -18,7 +20,8 @@
           </td>
           <td>
             Base Hue<br/>
-            <input type="range" id="hueSlider" min="0" max="999" value="500"/>
+            <input type="range" id="hueSliderOld" min="0" max="999" value="500"/>
+            <div id="hueSlider"></div>
           </td>
           <td>
             Base Saturation<br/>
@@ -36,7 +39,8 @@
           </td>
           <td>
             Hue Range<br/>
-            <input type="range" id="hueRangeSlider" min="0" max="999" value="999"/>
+            <input type="range" id="hueRangeSliderOld" min="0" max="999" value="999"/>
+            <div id="hueRangeSlider"></div>
           </td>
           <td>
             Saturation Range<br/>
@@ -55,6 +59,7 @@
 
     <script src="js/p5.js"></script>
     <script src="js/p5.dom.js"></script>
+    <script src="js/nouislider.js"></script>
     <script src="js/opc.js"></script>
     <script src="js/fadeclient.js"></script>
   </body>

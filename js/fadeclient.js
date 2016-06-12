@@ -15,6 +15,8 @@ var WIDTH = 40;
 // Milliseconds of inactivity before simulating activity
 var INACTIVITY_TIMEOUT = 30000;
 var INACTIVITY_CHANGE_FRAMES = 600;
+// This could probably be anything!
+var COLOR_MAX = 1000;
 
 var lastFrame;
 var lastTouch;
@@ -33,23 +35,49 @@ function setup() {
   // Do this now so we have it for draw() which is called by resizeCanvas()
   lastFrame = get();
 
-  colorMode(HSB, 1000, 1000, 1000, 1000);
+  colorMode(HSB, COLOR_MAX, COLOR_MAX, COLOR_MAX, COLOR_MAX);
   // Tint makes everything slow!!!
   noTint();
 
   decaySlider = select('#decaySlider');
-  hueSlider = select('#hueSlider');
+  hueSlider = select('#hueSliderOld');
   satSlider = select('#satSlider');
   brightSlider = select('#brightSlider');
-  hueRangeSlider = select('#hueRangeSlider');
+  hueRangeSlider = select('#hueRangeSliderOld');
   satRangeSlider = select('#satRangeSlider');
   brightRangeSlider = select('#brightRangeSlider');
   diameterSlider = select('#diameterSlider');
   statusSpan = select('#statusSpan');
 
+  newHueSlider = document.getElementById('hueSlider');
+  newHueRangeSlider = document.getElementById('hueRangeSlider');
+  initializeBaseAndRangeSliders(newHueSlider, newHueRangeSlider);
+  newHueSlider.noUiSlider.set(Math.random() * COLOR_MAX);
+  newHueRangeSlider.noUiSlider.set(COLOR_MAX / 10);
+
   // This encompasses all post-resize setup logic, so always call it to start
   windowResized();
   lastTouch = millis();
+}
+
+function initializeBaseAndRangeSliders(slider, rangeSlider) {
+  [slider, rangeSlider].forEach(function(s) {
+    noUiSlider.create(s, {
+      start: 0,
+      range: {
+        min: 0,
+        max: COLOR_MAX,
+      },
+      behaviour: 'snap'
+    });
+  });
+  // Because the 'update' handler is fired when connected, we can't connect
+  // it until both sliders are initialized. Now they are!
+  [slider, rangeSlider].forEach(function(s) {
+    s.noUiSlider.on('update', function() {
+      updateRangeIndicator(slider, rangeSlider);
+    });
+  });
 }
 
 function windowResized() {
@@ -78,6 +106,65 @@ function deviceShaken() {
   opc.toggleConnection();
 }
 
+function updateRangeIndicator(slider, rangeSlider) {
+  // Make sure these are numbers
+  var baseVal = +slider.noUiSlider.get();
+  var rangeVal = +rangeSlider.noUiSlider.get();
+  // Where to place pips indicating range
+  var values = [];
+  // Min/max values, which get big pips
+  var minVal, maxVal;
+  if (rangeVal == 0) {
+    // Just one pip
+    values.push(baseVal);
+    // This one pip's value will match minVal; maxVal is unused
+    minVal = baseVal;
+    maxVal = null;
+  } else {
+    // This may be < 0
+    minVal = baseVal - rangeVal/2;
+    // This may be > COLOR_MAX
+    maxVal = baseVal + rangeVal/2;
+    // Go from min to max, stepping by an arbitrary density
+    for (var i = minVal; i < maxVal; i += COLOR_MAX / 20) {
+      // Ensure pushed value is between 0 and COLOR_MAX
+      values.push((i + COLOR_MAX) % COLOR_MAX);
+    }
+    // Now that the loop is over, correct min/max to in-range values.
+    minVal = (minVal + COLOR_MAX) % COLOR_MAX;
+    maxVal = (maxVal + COLOR_MAX) % COLOR_MAX;
+    // We need this test because very close pip values will confuse the
+    // NoUiSlider and cause an infinite loop!
+    if (Math.abs(maxVal - minVal) < 0.01) {
+      // We're basically covering the whole range; cool. No need to show
+      // large pips: clear out min/max so they're never matched.
+      minVal = null;
+      maxVal = null;
+    } else {
+      // We should explicitly add maxVal here so we can match it below and
+      // show a big pip.
+      values.push(maxVal);
+    }
+  }
+  // Remove old set of pips (doesn't do this on its own??)
+  var oldPips = slider.querySelectorAll('.noUi-pips');
+  Array.prototype.forEach.call(oldPips, function(el) {
+    el.parentNode.removeChild(el);
+  });
+  slider.noUiSlider.pips({
+    mode: 'values',
+    values: values,
+    // This sets the density of the smallest pips, which we can't turn off.
+    // We hide them anyway, so just create as few as possible.
+    density: 10000,
+    format: { to: function() { return '' } },
+    filter: function(v) {
+      // Big pip if min or max; small pip otherwise
+      return v === minVal || v === maxVal ? 1 : 2;
+    }
+  });
+};
+
 // Object holding new touches that need to be drawn
 var touchHistory = {};
 // Store of old touches that we'll use if there's inactivity
@@ -95,8 +182,8 @@ function randomRange(baseSlider, rangeSlider, wrap) {
     return (
       // Base value plus/minus up to half the range value.
       (baseSlider.value() + (Math.random() - 0.5) * rangeSlider.value())
-       // This makes sure value returned is positive and less than 1000.
-       + 1000) % 1000
+       // This makes sure value returned is positive and less than COLOR_MAX.
+       + COLOR_MAX) % COLOR_MAX
   } else {
     // For sat/bright, the spread of values is affected by how close the base
     // value is to the bounds. Always allow the width of the range to happen,
@@ -197,7 +284,7 @@ function draw() {
   strokeWeight(dia);
   image(lastFrame);
   // Fill background with black at given alpha value to fade the image
-  background(0, 1000 - 1000 * Math.pow(decaySlider.value() / 1000, 1/8));
+  background(0, COLOR_MAX - COLOR_MAX * Math.pow(decaySlider.value() / COLOR_MAX, 1/8));
 
   // Loop through all still-going touches 
   for (var i in touchStore) {
