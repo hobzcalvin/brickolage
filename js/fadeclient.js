@@ -102,6 +102,11 @@ function initializeBaseAndRangeSliders(slider, rangeSlider, wrap) {
   });
 }
 
+function clearCanvas() {
+  background(0);
+  lastFrame = get();
+}
+
 function windowResized() {
   var thediv = select('#uiDiv');
   // Take up full width (since our display is wide).
@@ -115,21 +120,24 @@ function windowResized() {
   for (var i = 0; i < 8; i++) {
     opc.ledGrid((8-i-1)*50, HEIGHT, 5, width * (0.5 + i) / 8, height/2, width/WIDTH, width/WIDTH, Math.PI/2, true, true);
   }
-  background(0);
-  lastFrame = get();
+  clearCanvas();
 
   // Update these parameters for determining what the width slider means
   widthMin = width/WIDTH / 2;
   widthRange = width/WIDTH * HEIGHT;
 }
 
+function toggleConnection() {
+  opc.toggleConnection();
+  clearCanvas();
+}
 function keyPressed() {
   if (keyCode === ESCAPE) {
-    opc.toggleConnection();
+    toggleConnection();
   }
 }
 function deviceShaken() {
-  opc.toggleConnection();
+  toggleConnection();
 }
 
 function updateRangeIndicator(slider, rangeSlider, wrap) {
