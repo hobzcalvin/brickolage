@@ -6,8 +6,9 @@ var WEBSOCKET_STATES = {
   3: 'closed'
 }
 
-p5.OPC = function (host, using_websockify) {
+p5.OPC = function (host) {
   var self = this;
+
   var _sendPacket = function(pkt) {
     if (self.ws.readyState == 1) {
       var packet = new Uint8Array(pkt);
@@ -15,9 +16,24 @@ p5.OPC = function (host, using_websockify) {
     }
   }
 
-  this.connect = function() {
+  var _baseConnect = function() {
     self.ws = new WebSocket("ws://" + (self.host || "localhost:7890"),
                             self.using_websockify ? ['binary', 'base64'] : ['fcserver']);
+  }
+
+  this.connect = function() {
+    // First, try without using_websockify, as if we're talking to a real
+    // FadeCandy board.
+    self.using_websockify = false;
+    _baseConnect();
+    self.ws.onerror = function(err) {
+      // That didn't work; clear this error handler (avoid infinite loop!)
+      // and try using_websockify this time. This will fall back to setups
+      // using websockify as a proxy to a true openpixelcontrol server.
+      self.using_websockify = true;
+      self.ws.onerror = null;
+      _baseConnect();
+    }
   }
   this.close = function() {
     self.ws.close();
@@ -107,7 +123,6 @@ p5.OPC = function (host, using_websockify) {
 
   // ACTUAL CONSTRUCTOR STUFF
   this.host = host;
-  this.using_websockify = using_websockify;
   this.connect();
   this.pixelLocations = [];
 }
