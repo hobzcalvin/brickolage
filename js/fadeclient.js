@@ -13,7 +13,7 @@ var OPC_HOST = (window.location.hostname || 'localhost') + ':7890';
 var HEIGHT = 10;
 var WIDTH = 40;
 // Milliseconds of inactivity before simulating activity
-var INACTIVITY_TIMEOUT = 30000;
+var INACTIVITY_TIMEOUT = 15000;
 var INACTIVITY_CHANGE_FRAMES = 600;
 // This could probably be anything!
 var COLOR_MAX = 1000;
@@ -368,8 +368,8 @@ function draw() {
     inReplay = false;
   }
 
-  var width = widthSlider.noUiSlider.get() / COLOR_MAX * widthRange + widthMin;
-  strokeWeight(width);
+  var drawWidth = widthSlider.noUiSlider.get() / COLOR_MAX * widthRange + widthMin;
+  strokeWeight(drawWidth);
   image(lastFrame);
   // Fill background with black at given alpha value to fade the image
   background(0, COLOR_MAX - COLOR_MAX * Math.pow(decaySlider.noUiSlider.get() / COLOR_MAX, 1/8));
@@ -400,7 +400,7 @@ function draw() {
       noStroke();
       // Color is stored in the earliest history element.
       fill(touch[touch.length-1].color);
-      ellipse(touch[0].x, touch[0].y, width, width);
+      ellipse(touch[0].x, touch[0].y, drawWidth, drawWidth);
       touch[0].drawn = true;
     }
     if (touch[0].pendingDelete) {
