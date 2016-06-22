@@ -20,11 +20,10 @@ var COLOR_MAX = 1000;
 
 var lastFrame;
 var lastTouch;
+var widthMin;
+var widthRange;
 
-var decaySlider;
-var diameterSlider;
 var statusSpan;
-
 
 function setup() {
   opc = new p5.OPC(OPC_HOST, WEBSOCKIFY);
@@ -39,43 +38,66 @@ function setup() {
   // Tint makes everything slow!!!
   noTint();
 
-  decaySlider = select('#decaySlider');
-  hueSlider = select('#hueSliderOld');
-  satSlider = select('#satSlider');
-  brightSlider = select('#brightSlider');
-  hueRangeSlider = select('#hueRangeSliderOld');
-  satRangeSlider = select('#satRangeSlider');
-  brightRangeSlider = select('#brightRangeSlider');
-  diameterSlider = select('#diameterSlider');
   statusSpan = select('#statusSpan');
 
-  newHueSlider = document.getElementById('hueSlider');
-  newHueRangeSlider = document.getElementById('hueRangeSlider');
-  initializeBaseAndRangeSliders(newHueSlider, newHueRangeSlider);
-  newHueSlider.noUiSlider.set(Math.random() * COLOR_MAX);
-  newHueRangeSlider.noUiSlider.set(COLOR_MAX / 10);
+  // Get the slider DOM elements
+  decaySlider = document.getElementById('decaySlider');
+  widthSlider = document.getElementById('widthSlider');
+  hueSlider = document.getElementById('hueSlider');
+  satSlider = document.getElementById('satSlider');
+  brightSlider = document.getElementById('brightSlider');
+  hueRangeSlider = document.getElementById('hueRangeSlider');
+  satRangeSlider = document.getElementById('satRangeSlider');
+  brightRangeSlider = document.getElementById('brightRangeSlider');
+
+  // Initialize sliders
+  initializeSlider(decaySlider);
+  initializeSlider(widthSlider);
+  initializeBaseAndRangeSliders(hueSlider, hueRangeSlider, true);
+  initializeBaseAndRangeSliders(satSlider, satRangeSlider, false);
+  initializeBaseAndRangeSliders(brightSlider, brightRangeSlider, false);
+
+  // Some special initialization for hue/sat slider handlers
+  hueSlider.noUiSlider.on('update', function(val) {
+    satSlider.style.background = 'linear-gradient(90deg, ' +
+      '#FFFFFF, hsl(' + val/COLOR_MAX*360 + ', 100%, 50%))';
+  });
+  hueSlider.noUiSlider.on('update', updateBrightSlider);
+  satSlider.noUiSlider.on('update', updateBrightSlider);
+
+  // Initial values for sliders
+  decaySlider.noUiSlider.set(COLOR_MAX * 4 / 5);
+  widthSlider.noUiSlider.set(COLOR_MAX / 5);
+  hueSlider.noUiSlider.set(COLOR_MAX * Math.random());
+  hueRangeSlider.noUiSlider.set(COLOR_MAX / 10);
+  satSlider.noUiSlider.set(COLOR_MAX);
+  satRangeSlider.noUiSlider.set(COLOR_MAX / 5);
+  brightSlider.noUiSlider.set(COLOR_MAX);
+  brightRangeSlider.noUiSlider.set(COLOR_MAX / 5);
 
   // This encompasses all post-resize setup logic, so always call it to start
   windowResized();
   lastTouch = millis();
 }
 
-function initializeBaseAndRangeSliders(slider, rangeSlider) {
-  [slider, rangeSlider].forEach(function(s) {
-    noUiSlider.create(s, {
-      start: 0,
-      range: {
-        min: 0,
-        max: COLOR_MAX,
-      },
-      behaviour: 'snap'
-    });
+function initializeSlider(s) {
+  noUiSlider.create(s, {
+    start: 0,
+    range: {
+      min: 0,
+      max: COLOR_MAX
+    },
+    behaviour: 'snap'
   });
+}
+function initializeBaseAndRangeSliders(slider, rangeSlider, wrap) {
+  initializeSlider(slider);
+  initializeSlider(rangeSlider);
   // Because the 'update' handler is fired when connected, we can't connect
   // it until both sliders are initialized. Now they are!
   [slider, rangeSlider].forEach(function(s) {
     s.noUiSlider.on('update', function() {
-      updateRangeIndicator(slider, rangeSlider);
+      updateRangeIndicator(slider, rangeSlider, wrap);
     });
   });
 }
@@ -95,6 +117,10 @@ function windowResized() {
   }
   background(0);
   lastFrame = get();
+
+  // Update these parameters for determining what the width slider means
+  widthMin = width/WIDTH / 2;
+  widthRange = width/WIDTH * HEIGHT;
 }
 
 function keyPressed() {
@@ -106,7 +132,7 @@ function deviceShaken() {
   opc.toggleConnection();
 }
 
-function updateRangeIndicator(slider, rangeSlider) {
+function updateRangeIndicator(slider, rangeSlider, wrap) {
   // Make sure these are numbers
   var baseVal = +slider.noUiSlider.get();
   var rangeVal = +rangeSlider.noUiSlider.get();
@@ -120,19 +146,54 @@ function updateRangeIndicator(slider, rangeSlider) {
     // This one pip's value will match minVal; maxVal is unused
     minVal = baseVal;
     maxVal = null;
+    // Remember the 'range' on the slider for later lookup.
+    slider.min = slider.max = baseVal;
   } else {
+    if (!wrap) {
+      // For sat/bright, the spread of values is affected by how close the base
+      // value is to the bounds. Always allow the width of the range to happen,
+      // getting as close to "center" on the base as possible.
+      if (baseVal - rangeVal/2 < 0) {
+        baseVal = rangeVal/2;
+      } else if (baseVal + rangeVal/2 > COLOR_MAX) {
+        baseVal = COLOR_MAX - rangeVal/2;
+      }
+    }
+    // For hue, we can just use % to wrap the values around the color wheel.
     // This may be < 0
     minVal = baseVal - rangeVal/2;
     // This may be > COLOR_MAX
     maxVal = baseVal + rangeVal/2;
     // Go from min to max, stepping by an arbitrary density
-    for (var i = minVal; i < maxVal; i += COLOR_MAX / 20) {
-      // Ensure pushed value is between 0 and COLOR_MAX
-      values.push((i + COLOR_MAX) % COLOR_MAX);
+    for (var i = minVal; i < maxVal; i += COLOR_MAX / 50) {
+      // Only do this if needed because the + / % thing adds float inaccuracy!
+      if (i < 0 || i > COLOR_MAX) {
+        // Ensure pushed value is between 0 and COLOR_MAX
+        values.push((i + COLOR_MAX) % COLOR_MAX);
+      } else {
+        values.push(i);
+      }
     }
-    // Now that the loop is over, correct min/max to in-range values.
-    minVal = (minVal + COLOR_MAX) % COLOR_MAX;
-    maxVal = (maxVal + COLOR_MAX) % COLOR_MAX;
+    // Remember these values on the slider for later lookup.
+    // Do this before we correct them to in-range; we want this for easier
+    // color computation later. So hueSlider's min,max may be -50,50 or
+    // 950,1050, which are equivalent and both fine. randomRange() corrects
+    // its return value to [0, COLOR_MAX].
+    slider.min = minVal;
+    slider.max = maxVal;
+    if (wrap) {
+      // Now that the loop is over, correct min/max to in-range values.
+      // (If we aren't wrapping these values should already be in range,
+      // and we don't want to correct maxVal=COLOR_MAX to 0.)
+      // Also, only correct if needed (and we corrected above in the for loop)
+      // because the correction adds float error!
+      if (minVal < 0) {
+        minVal = (minVal + COLOR_MAX) % COLOR_MAX;
+      }
+      if (maxVal > 0) {
+        maxVal %= COLOR_MAX;
+      }
+    }
     // We need this test because very close pip values will confuse the
     // NoUiSlider and cause an infinite loop!
     if (Math.abs(maxVal - minVal) < 0.01) {
@@ -163,7 +224,26 @@ function updateRangeIndicator(slider, rangeSlider) {
       return v === minVal || v === maxVal ? 1 : 2;
     }
   });
+  // Sigh, okay. If there are no large pips and minVal isn't null
+  // (if it was we wouldn't want to show *any* large pips)
+  // that means the single large one was replaced
+  // by a tiny one (which we don't show). Upgrade that one.
+  if (minVal !== null &&
+      slider.querySelectorAll('.noUi-marker-large').length == 0) {
+    var pips = slider.querySelectorAll('.noUi-marker-normal');
+    if (pips.length > 0) {
+      pips[pips.length-1].classList.remove('noUi-marker-normal');
+      pips[pips.length-1].classList.add('noUi-marker-large');
+    }
+  }
 };
+
+function updateBrightSlider() {
+  var satPercent = satSlider.noUiSlider.get()/COLOR_MAX*100;
+  brightSlider.style.background = 'linear-gradient(90deg, #000000, ' +
+    'hsl(' + hueSlider.noUiSlider.get()/COLOR_MAX*360 + ', ' +
+         satPercent + '%, ' + (100 - satPercent/2) + '%))';
+}
 
 // Object holding new touches that need to be drawn
 var touchHistory = {};
@@ -176,7 +256,7 @@ var currentReplay = null;
 // Another boolean to track if we're entering replay right now
 var inReplay = false;
 
-function randomRange(baseSlider, rangeSlider, wrap) {
+function oldRandomRange(baseSlider, rangeSlider, wrap) {
   if (wrap) {
     // For hue, wrapping/"overflowing" around the min/max is ok.
     return (
@@ -198,16 +278,24 @@ function randomRange(baseSlider, rangeSlider, wrap) {
     return (Math.random() - 0.5) * range + base;
   }
 }
+function randomRange(s) {
+  var val = s.min + Math.random() * (s.max - s.min);
+  // Only correct if needed so values equal to COLOR_MAX aren't
+  // corrected to zero.
+  if (val < 0 || val > COLOR_MAX) {
+    val = (val + COLOR_MAX) % COLOR_MAX;
+  }
+  return val;
+}
 function newColor() {
   return color(
-    randomRange(hueSlider, hueRangeSlider, true),
-    randomRange(satSlider, satRangeSlider, false),
-    randomRange(brightSlider, brightRangeSlider, false)
+    randomRange(hueSlider),
+    randomRange(satSlider),
+    randomRange(brightSlider)
   );
 }
 function randomizeSlider(s) {
-  var min = s.attribute('min');
-  s.value(Math.random() * (s.attribute('max')-min) + min);
+  s.noUiSlider.set(Math.random() * COLOR_MAX);
 }
 
 function draw() {
@@ -220,7 +308,7 @@ function draw() {
       inReplay = true;
       // Randomize various settings.
       randomizeSlider(decaySlider);
-      randomizeSlider(diameterSlider);
+      randomizeSlider(widthSlider);
       randomizeSlider(hueSlider);
       randomizeSlider(satSlider);
       randomizeSlider(brightSlider);
@@ -280,11 +368,11 @@ function draw() {
     inReplay = false;
   }
 
-  var dia = diameterSlider.value();
-  strokeWeight(dia);
+  var width = widthSlider.noUiSlider.get() / COLOR_MAX * widthRange + widthMin;
+  strokeWeight(width);
   image(lastFrame);
   // Fill background with black at given alpha value to fade the image
-  background(0, COLOR_MAX - COLOR_MAX * Math.pow(decaySlider.value() / COLOR_MAX, 1/8));
+  background(0, COLOR_MAX - COLOR_MAX * Math.pow(decaySlider.noUiSlider.get() / COLOR_MAX, 1/8));
 
   // Loop through all still-going touches 
   for (var i in touchStore) {
@@ -312,7 +400,7 @@ function draw() {
       noStroke();
       // Color is stored in the earliest history element.
       fill(touch[touch.length-1].color);
-      ellipse(touch[0].x, touch[0].y, dia, dia);
+      ellipse(touch[0].x, touch[0].y, width, width);
       touch[0].drawn = true;
     }
     if (touch[0].pendingDelete) {
