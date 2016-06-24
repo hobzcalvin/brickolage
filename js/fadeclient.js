@@ -34,6 +34,7 @@ var widthMin;
 var widthRange;
 
 var statusSpan;
+var fpsSpan;
 
 function setup() {
   opc = new p5.OPC(OPC_HOST);
@@ -47,6 +48,7 @@ function setup() {
   noTint();
 
   statusSpan = select('#statusSpan');
+  fpsSpan = select('#fpsSpan');
 
   // Get the slider DOM elements
   decaySlider = document.getElementById('decaySlider');
@@ -115,7 +117,8 @@ function clearCanvas() {
 }
 
 function windowResized() {
-  var thediv = select('#uiDiv');
+  var otherHeight = select('#uiDiv').size().height +
+    select('#bottomDiv').size().height;
   // Take up full width (since our display is wide).
   // Height of canvas should be twice what it needs to be to fit all the
   // virtual pixels (so users can draw outside the pixels a bit without
@@ -123,7 +126,7 @@ function windowResized() {
   // #uiDiv's height--whichever is less. This saves unnecessary pixels when
   // the window is very tall.
   resizeCanvas(windowWidth, Math.min(windowWidth / WIDTH * HEIGHT * 2,
-                                     windowHeight - thediv.size().height));
+                                     windowHeight - otherHeight));
   for (var i = 0; i < 8; i++) {
     opc.ledGrid((8-i-1)*50, HEIGHT, 5, width * (0.5 + i) / 8, height/2, width/WIDTH, width/WIDTH, Math.PI/2, true, true);
   }
@@ -435,8 +438,9 @@ var frCount = 0;
 function updateFrameRate() {
   frSum += frameRate();
   frCount++;
-  if (frCount >= 10) {
-    statusSpan.html(opc.getState() + ' | fps:' + Math.round(frSum/frCount));
+  if (frCount >= 20) {
+    statusSpan.html(opc.getState());
+    fpsSpan.html('fps:' + Math.round(frSum/frCount));
     frSum = frCount = 0;
   }
 }

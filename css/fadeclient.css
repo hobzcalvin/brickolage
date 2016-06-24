@@ -17,7 +17,7 @@ table {
 }
 
 .noUi-target {
-  margin: 10px;
+  margin: 20px;
 }
 .noUi-marker {
   background: #D3D3D3;
@@ -53,4 +53,10 @@ table {
 }
 .noUi-handle:before, .noUi-handle:after {
   background: #7F7F7F;
+}
+
+#bottomDiv {
+position:fixed;
+bottom: 10px;
+left: 10px;
 }
