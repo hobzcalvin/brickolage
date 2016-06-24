@@ -6,7 +6,7 @@ var WEBSOCKET_STATES = {
   3: 'closed'
 }
 
-p5.OPC = function (host) {
+p5.OPC = function (host, overlayCanvas) {
   var self = this;
 
   var _sendPacket = function(pkt) {
@@ -50,6 +50,20 @@ p5.OPC = function (host) {
   this.led = function(index, x, y) {
     // 4 values per pixel (R, G, B, A) in the pixels array
     self.pixelLocations[index] = (x + width * y) * 4;
+
+    // Draw + in white and X in black on the overlay where this pixel
+    // is sampled; this ensures that a pixel indicator is always visible
+    // no matter what color appears beneath it.
+    self.overlayCanvas.stroke('FFFFFF');
+    self.overlayCanvas.point(x-1, y);
+    self.overlayCanvas.point(x+1, y);
+    self.overlayCanvas.point(x, y-1);
+    self.overlayCanvas.point(x, y+1);
+    self.overlayCanvas.stroke(0);
+    self.overlayCanvas.point(x-1, y-1);
+    self.overlayCanvas.point(x+1, y-1);
+    self.overlayCanvas.point(x-1, y+1);
+    self.overlayCanvas.point(x+1, y+1);
   }
 
   // Set the location of several LEDs arranged in a strip.
@@ -87,23 +101,6 @@ p5.OPC = function (host) {
     return WEBSOCKET_STATES[self.ws.readyState];
   }
 
-  this.preDraw = function() {
-    // Remove the pixel-indicator dots we added in handleDraw so the
-    // canvas is restored to its original state. This lets callers
-    // perform operations on the canvas without needing to handle
-    // the fact that we draw on it.
-    loadPixels();
-    for (var i = 0; i < self.pixelLocations.length; i++) {
-      var idx = self.pixelLocations[i];
-      if (idx !== undefined) {
-        pixels[idx] ^= 0xFF;
-        pixels[idx+1] ^= 0xFF;
-        pixels[idx+2] ^= 0xFF;
-      }
-    }
-    updatePixels();
-  }
-
   this.handleDraw = function() {
     loadPixels();
 
@@ -115,9 +112,6 @@ p5.OPC = function (host) {
         packet.push(0, 0, 0);
       } else {
         packet.push(pixels[idx], pixels[idx+1], pixels[idx+2]);
-        pixels[idx] ^= 0xFF;
-        pixels[idx+1] ^= 0xFF;
-        pixels[idx+2] ^= 0xFF;
       }
     }
     if (self.using_websockify) {
@@ -128,8 +122,6 @@ p5.OPC = function (host) {
       packet.unshift(0, 0, 0, 0);
     }
     _sendPacket(packet);
-
-    updatePixels();
   }
 
   // http://stackoverflow.com/questions/4812686/closing-websocket-correctly-html5-javascript
@@ -140,6 +132,7 @@ p5.OPC = function (host) {
 
   // ACTUAL CONSTRUCTOR STUFF
   this.host = host;
+  this.overlayCanvas = overlayCanvas;
   this.connect();
   this.pixelLocations = [];
 }

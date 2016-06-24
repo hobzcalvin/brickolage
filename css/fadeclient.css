@@ -55,6 +55,14 @@ table {
   background: #7F7F7F;
 }
 
+/* These put overlay canvas on top of main canvas */
+#canvasDiv {
+  position: relative;
+}
+canvas {
+  position: absolute;
+}
+
 #bottomDiv {
 position:fixed;
 bottom: 10px;

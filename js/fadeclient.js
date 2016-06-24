@@ -33,17 +33,26 @@ var lastTouch;
 var widthMin;
 var widthRange;
 
+var overlay;
 var statusSpan;
 var fpsSpan;
 
 function setup() {
-  opc = new p5.OPC(OPC_HOST);
+  colorMode(HSB, COLOR_MAX, COLOR_MAX, COLOR_MAX, COLOR_MAX);
   pixelDensity(1);
+
   // Bogus values until we call windowResized()
   var canvas = createCanvas(10, 10);
   canvas.parent('#canvasDiv');
+  // Create overlay canvas for OPC to display pixel indicators
+  overlay = createGraphics(10, 10);
+  overlay.parent('#canvasDiv');
+  overlay.show();
+  // Overlay is on top of main canvas
+  canvas.elt.style.zIndex = "0";
+  overlay.elt.style.zIndex = "1";
 
-  colorMode(HSB, COLOR_MAX, COLOR_MAX, COLOR_MAX, COLOR_MAX);
+  opc = new p5.OPC(OPC_HOST, overlay);
   // Tint makes everything slow!!!
   noTint();
 
@@ -114,6 +123,8 @@ function initializeBaseAndRangeSliders(slider, rangeSlider, wrap) {
 
 function clearCanvas() {
   background(0);
+  // Transparent background; OPC draws pixel indicators when we call ledGrid()
+  overlay.background(0, 0);
 }
 
 function windowResized() {
@@ -127,6 +138,8 @@ function windowResized() {
   // the window is very tall.
   resizeCanvas(windowWidth, Math.min(windowWidth / WIDTH * HEIGHT * 2,
                                      windowHeight - otherHeight));
+  // Also update our overlay canvas so it's the same size (and position)
+  overlay.resizeCanvas(width, height);
   for (var i = 0; i < 8; i++) {
     opc.ledGrid((8-i-1)*50, HEIGHT, 5, width * (0.5 + i) / 8, height/2, width/WIDTH, width/WIDTH, Math.PI/2, true, true);
   }
@@ -317,7 +330,6 @@ function randomizeSlider(s) {
 }
 
 function draw() {
-  opc.preDraw();
   // This points to touchHistory when there's active use; otherwise it holds
   // simulated touches from the touchArchive.
   var touchStore = {};
