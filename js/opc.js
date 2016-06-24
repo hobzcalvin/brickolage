@@ -87,6 +87,23 @@ p5.OPC = function (host) {
     return WEBSOCKET_STATES[self.ws.readyState];
   }
 
+  this.preDraw = function() {
+    // Remove the pixel-indicator dots we added in handleDraw so the
+    // canvas is restored to its original state. This lets callers
+    // perform operations on the canvas without needing to handle
+    // the fact that we draw on it.
+    loadPixels();
+    for (var i = 0; i < self.pixelLocations.length; i++) {
+      var idx = self.pixelLocations[i];
+      if (idx !== undefined) {
+        pixels[idx] ^= 0xFF;
+        pixels[idx+1] ^= 0xFF;
+        pixels[idx+2] ^= 0xFF;
+      }
+    }
+    updatePixels();
+  }
+
   this.handleDraw = function() {
     loadPixels();
 

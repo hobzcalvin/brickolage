@@ -29,7 +29,6 @@ var INACTIVITY_CHANGE_FRAMES = 600;
 // This could probably be anything!
 var COLOR_MAX = 1000;
 
-var lastFrame;
 var lastTouch;
 var widthMin;
 var widthRange;
@@ -42,8 +41,6 @@ function setup() {
   // Bogus values until we call windowResized()
   var canvas = createCanvas(10, 10);
   canvas.parent('#canvasDiv');
-  // Do this now so we have it for draw() which is called by resizeCanvas()
-  lastFrame = get();
 
   colorMode(HSB, COLOR_MAX, COLOR_MAX, COLOR_MAX, COLOR_MAX);
   // Tint makes everything slow!!!
@@ -115,7 +112,6 @@ function initializeBaseAndRangeSliders(slider, rangeSlider, wrap) {
 
 function clearCanvas() {
   background(0);
-  lastFrame = get();
 }
 
 function windowResized() {
@@ -318,6 +314,7 @@ function randomizeSlider(s) {
 }
 
 function draw() {
+  opc.preDraw();
   // This points to touchHistory when there's active use; otherwise it holds
   // simulated touches from the touchArchive.
   var touchStore = {};
@@ -389,7 +386,6 @@ function draw() {
 
   var drawWidth = widthSlider.noUiSlider.get() / COLOR_MAX * widthRange + widthMin;
   strokeWeight(drawWidth);
-  image(lastFrame);
   // Fill background with black at given alpha value to fade the image
   background(0, COLOR_MAX - COLOR_MAX * Math.pow(decaySlider.noUiSlider.get() / COLOR_MAX, 1/8));
 
@@ -430,8 +426,6 @@ function draw() {
     }
   } 
 
-  // Save the canvas before OPC does crap to it
-  lastFrame = get();
   opc.handleDraw();
   updateFrameRate();
 }
