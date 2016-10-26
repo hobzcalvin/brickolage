@@ -1,0 +1,2 @@
+[raspbian]
+brickolage ansible_ssh_host=raspberrypi.local ansible_ssh_user=pi ansible_ssh_pass=raspberry host_key_checking=false

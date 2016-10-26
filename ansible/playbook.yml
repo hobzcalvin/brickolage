@@ -1,0 +1,18 @@
+#!/usr/bin/env ansible-playbook
+---
+- hosts: brickolage
+  vars:
+  # was `sudo: yes` but that's deprecated
+  become: yes
+  # `ansible all -m setup --tree /tmp/facts` to see what facts we get
+  gather_facts: no
+  tasks:
+    - name: apt install git
+      apt: name=git
+    - name: fadecandy from github
+      git: repo=https://github.com/scanlime/fadecandy.git
+           dest=/home/pi/fadecandy
+    - name: brickolage from github
+      git: repo=https://github.com/hobzcalvin/brickolage.git
+           dest=/home/pi/brickolage
+           
