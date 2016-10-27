@@ -6,9 +6,39 @@
   become: yes
   # `ansible all -m setup --tree /tmp/facts` to see what facts we get
   gather_facts: no
+  handlers:
+    - name: restart supervisord
+      become: yes
+      service: name=supervisor state=restarted
   tasks:
     - name: apt install git
       apt: name=git
+    - name: apt install supervisor
+      apt: name=supervisor
+
+    - name: supervisor conf dir
+      file:
+        dest: /etc/supervisor
+        state: directory
+      notify: restart supervisord
+    - name: supervisor conf file
+      template:
+        src: supervisord.conf
+        dest: /etc/supervisor/supervisord.conf
+      notify: restart supervisord
+    - name: Link Supervisord conf
+      file:
+        src: /etc/supervisor/supervisord.conf
+        dest: /etc/supervisord.conf
+        state: link
+      notify: restart supervisord
+    - name: supervisord running
+      service:
+        name: supervisor
+        state: running
+        enabled: yes
+
+
     - name: fadecandy from github
       git: repo=https://github.com/scanlime/fadecandy.git
            dest=/home/pi/fadecandy
