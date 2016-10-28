@@ -8,14 +8,27 @@
   gather_facts: no
   handlers:
     - name: restart supervisord
-      become: yes
       service: name=supervisor state=restarted
+    - name: restart fcserver
+      supervisorctl: name=fcserver state=restarted
   tasks:
     - name: apt install git
       apt: name=git
     - name: apt install supervisor
       apt: name=supervisor
 
+    - name: fadecandy from github
+      git: repo=https://github.com/scanlime/fadecandy.git
+           dest=/home/pi/fadecandy
+    - name: brickolage from github
+      git: repo=https://github.com/hobzcalvin/brickolage.git
+           dest=/home/pi/brickolage
+    - name: fcserver config file
+      template:
+        src: fcserver_config_lc_grb.json
+        dest: /home/pi/fcserver_config_lc_grb.json
+      notify: restart fcserver
+           
     - name: supervisor conf dir
       file:
         dest: /etc/supervisor
@@ -38,11 +51,3 @@
         state: running
         enabled: yes
 
-
-    - name: fadecandy from github
-      git: repo=https://github.com/scanlime/fadecandy.git
-           dest=/home/pi/fadecandy
-    - name: brickolage from github
-      git: repo=https://github.com/hobzcalvin/brickolage.git
-           dest=/home/pi/brickolage
-           
