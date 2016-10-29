@@ -17,6 +17,18 @@
       supervisorctl: name=fcserver state=restarted
     - name: restart nginx
       service: name=nginx state=restarted
+    - name: restart dhcpcd
+      service: name=dhcpcd state=restarted
+    - name: reload wlan0
+      command: ifdown wlan0
+      notify: reload wlan0 part2
+    - name: reload wlan0 part2
+      command: ifup wlan0
+    - name: restart hostapd
+      service: name=hostapd state=restarted
+    - name: restart dnsmasq
+      service: name=dnsmasq state=restarted
+
   tasks:
     - name: update apt
       apt: update_cache=yes
@@ -76,4 +88,33 @@
         dest: /etc/nginx/sites-available/default
       notify: restart nginx
         
-
+    - name: install wap stuff
+      apt: name={{item}}
+      with_items:
+        - dnsmasq
+        - hostapd
+    - name: turn off wlan0 in dhcpcd
+      copy:
+        src: dhcpcd.conf
+        dest: /etc/dhcpcd.conf
+      notify: restart dhcpcd
+    - name: configure static ip for wlan0
+      copy:
+        src: network-interfaces
+        dest: /etc/network/interfaces
+      notify: reload wlan0
+    - name: hostapd config
+      copy:
+        src: hostapd.conf
+        dest: /etc/hostapd/hostapd.conf
+      notify: restart hostapd
+    - name: hostapd daemon
+      copy:
+        src: default-hostapd
+        dest: /etc/default/hostapd
+      notify: restart hostapd
+    - name: dnsmasq config
+      copy:
+        src: dnsmasq.conf
+        dest: /etc/dnsmasq.conf
+      notify: restart dnsmasq
