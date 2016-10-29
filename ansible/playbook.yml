@@ -7,16 +7,21 @@
   # `ansible all -m setup --tree /tmp/facts` to see what facts we get
   gather_facts: no
   handlers:
-    - name: restart supervisord
-      service: name=supervisor state=restarted
+    - name: restart supervisor
+      service: name=supervisor state=stopped
+      notify: restart supervisor part2
+    # We want to stop, then start supervisor to grab all new config changes and restart all services
+    - name: restart supervisor part2
+      service: name=supervisor state=started
     - name: restart fcserver
       supervisorctl: name=fcserver state=restarted
+    - name: restart nginx
+      service: name=nginx state=restarted
   tasks:
+    - name: update apt
+      apt: update_cache=yes
     - name: apt install git
       apt: name=git
-    - name: apt install supervisor
-      apt: name=supervisor
-
     - name: fadecandy from github
       git: repo=https://github.com/scanlime/fadecandy.git
            dest=/home/pi/fadecandy
@@ -24,30 +29,51 @@
       git: repo=https://github.com/hobzcalvin/brickolage.git
            dest=/home/pi/brickolage
     - name: fcserver config file
-      template:
+      copy:
         src: fcserver_config_lc_grb.json
         dest: /home/pi/fcserver_config_lc_grb.json
       notify: restart fcserver
+    - name: fcserver log dir
+      file:
+        dest: /var/log/fcserver
+        state: directory
+      notify: restart supervisor
            
+    - name: apt install supervisor
+      apt: name=supervisor
     - name: supervisor conf dir
       file:
         dest: /etc/supervisor
         state: directory
-      notify: restart supervisord
+      notify: restart supervisor
     - name: supervisor conf file
-      template:
+      copy:
         src: supervisord.conf
         dest: /etc/supervisor/supervisord.conf
-      notify: restart supervisord
+      notify: restart supervisor
     - name: Link Supervisord conf
       file:
         src: /etc/supervisor/supervisord.conf
         dest: /etc/supervisord.conf
         state: link
-      notify: restart supervisord
+      notify: restart supervisor
     - name: supervisord running
       service:
         name: supervisor
         state: running
         enabled: yes
+
+    - name: apt install nginx
+      apt: name=nginx
+    - name: nginx running
+      service:
+        name: nginx
+        state: running
+        enabled: yes
+    - name: nginx server config
+      copy:
+        src: nginx-sites-default
+        dest: /etc/nginx/sites-available/default
+      notify: restart nginx
+        
 
