@@ -17,7 +17,8 @@ p5.OPC = function (host, overlayCanvas) {
   }
 
   var _baseConnect = function() {
-    self.ws = new WebSocket("ws://" + (self.host || "localhost:7890"),
+    // XXX: Fix demo for now with wss; ssl should be an option
+    self.ws = new WebSocket("wss://" + (self.host || "localhost:7890"),
                             self.using_websockify ? ['binary', 'base64'] : ['fcserver']);
   }
 
