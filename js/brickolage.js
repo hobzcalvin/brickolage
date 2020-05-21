@@ -1,4 +1,5 @@
-var OPC_HOST = (window.location.hostname || 'localhost') + ':7890';
+var OPC_HOST = (location.protocol == 'https:' ? 'wss' : 'ws') + '://' +
+  (window.location.hostname || 'localhost') + ':7890';
 
 var HEIGHT = 10;
 var WIDTH = 40;
