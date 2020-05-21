@@ -126,8 +126,8 @@ p5.OPC = function (host, overlayCanvas) {
 
   // http://stackoverflow.com/questions/4812686/closing-websocket-correctly-html5-javascript
   window.onbeforeunload = function() {
-    websocket.onclose = function () {}; // disable onclose handler first
-    websocket.close()
+    self.ws.onclose = function () {}; // disable onclose handler first
+    self.ws.close()
   };
 
   // ACTUAL CONSTRUCTOR STUFF
